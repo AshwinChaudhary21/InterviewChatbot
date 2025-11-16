@@ -13,10 +13,9 @@ InterviewChatbot is an AI-powered application designed to automate the initial t
 ## Tech Stack
 
 * **Frontend:** [Streamlit](https://streamlit.io/)
-* **Backend Logic:** Python
+* **Backend Logic:** [Python](https://www.python.org/)
 * **AI/LLM:** [Groq](https://groq.com/)
-* **Database:** [MongoDB](https://www.mongodb.com/) (using `pymongo`)
-* **Dependencies:** `python-dotenv`, `streamlit`, `groq`, `pymongo`
+* **Database:** [MongoDB](https://www.mongodb.com/)
 
 ## Setup and Installation
 

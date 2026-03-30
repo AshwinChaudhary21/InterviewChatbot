@@ -1,4 +1,5 @@
-# IntervieInterviewChatbot is an AI-powered application designed to automate the initial technical screening process. It provides a Streamlit-based chatbot interface where candidates can input their details and tech stack. The application then uses the Groq API to generate relevant, open-ended technical questions and saves the candidate's answers to a PostgreSQL database.
+## Interview Chatbot  
+It is an AI-powered application designed to automate the initial technical screening process. It provides a Streamlit-based chatbot interface where candidates can input their details and tech stack. The application then uses the Groq API to generate relevant, open-ended technical questions and saves the candidate's answers to a PostgreSQL database.
 
 ## Features
 
@@ -59,13 +60,13 @@ Your `.env` file should look like this:
 # Get your Groq API key from [https://console.groq.com/](https://console.groq.com/)
 GROQ_API_KEY="gsk_YOUR_GROQ_API_KEY"
 
-# Your MongoDB connection string.
-MONGO_URI="mongodb://localhost:27017"
+# PostgreSQL connection string
+DATABASE_URL="postgresql://postgres:your_password@localhost:5432/interview"
 ```
 
-### 5\. Ensure MongoDB is Running
+### 5\. Ensure PostgresSQL is Running
 
-This application requires a running MongoDB instance. Make sure your MongoDB server is active and accessible via the `MONGO_URI` you provided in the `.env` file.
+Make sure PostgreSQL is installed and running. Also ensure that your database (interview) and required tables are created before running the app.
 
 ## How to Run
 
@@ -81,7 +82,7 @@ Open your web browser and navigate to the local URL provided in your terminal (u
 
   * **`app.py`**: The main Streamlit application. It handles the UI, session state, and multi-step form logic.
   * **`server.py`**: The backend module responsible for communicating with the Groq API and generating questions.
-  * **`mongo.py`**: Contains all MongoDB logic, including the `MongoDB` client class and helper functions (`save_candidate_and_answers`) to interact with the database.
+  * **`postgres.py`**: Contains all PostgresSQL logic to save the data and interact with the database.
   * **`globals.py`**: A simple file used to share the global `techstack` list between modules.
   * **`requirements.txt`**: A list of all Python dependencies for the project.
   * **`.gitignore`**: Specifies files and directories that Git should ignore (like `.env` and `__pycache__`).

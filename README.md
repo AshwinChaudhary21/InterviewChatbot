@@ -1,21 +1,19 @@
-# InterviewChatbot 🧑‍💻
-
-InterviewChatbot is an AI-powered application designed to automate the initial technical screening process. It provides a Streamlit-based chatbot interface where candidates can input their details and tech stack. The application then uses the Groq API to generate relevant, open-ended technical questions and saves the candidate's answers to a MongoDB database.
+# IntervieInterviewChatbot is an AI-powered application designed to automate the initial technical screening process. It provides a Streamlit-based chatbot interface where candidates can input their details and tech stack. The application then uses the Groq API to generate relevant, open-ended technical questions and saves the candidate's answers to a PostgreSQL database.
 
 ## Features
 
 * **Candidate Information:** Collects essential candidate details like name, email, phone, and experience.
 * **Tech Stack Input:** Allows candidates to specify their programming languages, frameworks, databases, and tools.
-* **AI-Powered Question Generation:** Connects to the Groq API (using the `llama-3.1-8b-instant` model) to generate 3-5 unique technical questions for each technology.
+* **AI-Powered Question Generation:** Connects to the Groq API (using the `llama-3.1-8b-instant` model) to generate 3–5 unique technical questions for each technology.
 * **Interview Interface:** Presents the generated questions in a clean chat and form layout.
-* **Database Storage:** Saves all candidate information and their answers securely to a MongoDB collection for review.
+* **Database Storage:** Saves all candidate information and their answers securely to a PostgreSQL database for review.
 
 ## Tech Stack
 
 * **Frontend:** [Streamlit](https://streamlit.io/)
 * **Backend Logic:** [Python](https://www.python.org/)
 * **AI/LLM:** [Groq](https://groq.com/)
-* **Database:** [MongoDB](https://www.mongodb.com/)
+* **Database:** [PostgreSQL](https://www.postgresql.org/)
 
 ## Setup and Installation
 

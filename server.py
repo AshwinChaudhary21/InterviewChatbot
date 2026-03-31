@@ -34,14 +34,18 @@ def parse_tech_input(s: str) -> List[str]:
     return [item.strip() for item in re.split(r",|\n|;", s) if item.strip()]
 
 
-_PROMPT_TEMPLATE = """You are a senior technical interviewer. For each technology in the list below, generate **between 3 and 5** open-ended technical interview questions that deeply test practical proficiency (no trivial/yes-no questions).
-Return the result as strict JSON only, with the exact top-level structure:
+_PROMPT_TEMPLATE = """
+You are a senior technical interviewer.
+
+For each technology in the list below, generate **between 3 and 5** **practical, concise, open-ended technical interview questions** that test real understanding without requiring long theoretical explanations.
+
+Return the result as **strict JSON only**, with the exact top-level structure:
 
 {{
   "<TECH_NAME_1>": [
     {{
       "question": "<question text>",
-      "ideal_answer_focus": "<one-sentence bullet points of what the interviewer should look for (optional)>"
+      "ideal_answer_focus": "<what the interviewer should look for in a strong 2-3 line answer>"
     }},
     ...
   ],
@@ -50,10 +54,21 @@ Return the result as strict JSON only, with the exact top-level structure:
 
 Requirements:
 - Produce **JSON only** (no surrounding commentary, no markdown, no code fences).
-- Each technology must have 3–5 questions.
-- Questions must be unique, relevant, and practical (prefer real-world scenarios, debugging, design, performance, and tradeoffs).
-- Keep each "ideal_answer_focus" concise (<= 25 words). It can be empty string if not needed.
-- Each question should be answerable succinctly (within 2-3 lines).
+- Each technology must have **3 to 5** questions.
+- Questions must be **unique, practical, and interview-relevant**.
+- Focus on:
+  - debugging
+  - real-world usage
+  - performance
+  - common mistakes
+  - design decisions
+  - tradeoffs
+- **Avoid broad theoretical or essay-style questions.**
+- **Every question must be answerable clearly within 2–3 lines by a candidate.**
+- Do **not** ask questions that require long definitions, large code explanations, or deep academic theory.
+- Prefer scenario-based or concept-application questions over textbook questions.
+- Keep each "ideal_answer_focus" concise (**<= 20 words**).
+- If needed, "ideal_answer_focus" can be an empty string.
 
 Technologies: {tech_list}
 """

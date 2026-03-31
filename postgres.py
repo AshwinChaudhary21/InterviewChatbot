@@ -1,8 +1,6 @@
-# postgres.py
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import os
-import json
 import traceback
 
 try:
@@ -43,37 +41,36 @@ CREATE TABLE IF NOT EXISTS answers (
 """
 
 
-# ---------------------------------------------------------------------------
-# Low-level DB client
-# ---------------------------------------------------------------------------
 class PostgresDB:
     def __init__(self, dsn: Optional[str] = None):
         if psycopg2 is None:
             raise ImportError("psycopg2 is not installed. Run: pip install psycopg2-binary")
-        self._dsn = dsn or os.getenv("POSTGRES_DSN", "postgresql://localhost/interview")
-        self._conn = None
-        self.connect()
 
-    def connect(self) -> None:
-        if self._conn and not self._conn.closed:
-            return
-        try:
-            self._conn = psycopg2.connect(self._dsn)
-            self._conn.autocommit = False
-            self._ensure_schema()
-        except psycopg2.OperationalError as ex:
-            raise ConnectionError(f"Could not connect to PostgreSQL: {ex}")
+        self._dsn = dsn or os.getenv("POSTGRES_DSN") or os.getenv("DATABASE_URL")
+        if not self._dsn:
+            raise ValueError("POSTGRES_DSN or DATABASE_URL is not set.")
+
+        self._ensure_schema()
+
+    # ------------------------------------------------------------------
+    # Connection helper
+    # ------------------------------------------------------------------
+    def _get_conn(self):
+        return psycopg2.connect(self._dsn, sslmode="require")
 
     def _ensure_schema(self) -> None:
-        with self._conn.cursor() as cur:
-            cur.execute(_SCHEMA_SQL)
-        self._conn.commit()
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(_SCHEMA_SQL)
+            conn.commit()
+        finally:
+            conn.close()
 
     # ------------------------------------------------------------------
     # Candidate operations
     # ------------------------------------------------------------------
     def upsert_candidate(self, email: str, profile: Dict[str, Any]) -> int:
-        """Insert or update a candidate row. Returns candidate id."""
         sql = """
             INSERT INTO candidates (name, email, phone, position, tech_stack, meta, updated_at)
             VALUES (%(name)s, %(email)s, %(phone)s, %(position)s, %(tech_stack)s, %(meta)s, NOW())
@@ -94,11 +91,16 @@ class PostgresDB:
             "tech_stack": Json(profile.get("tech_stack", [])),
             "meta":       Json(profile.get("meta", {})),
         }
-        with self._conn.cursor() as cur:
-            cur.execute(sql, params)
-            row = cur.fetchone()
-        self._conn.commit()
-        return row[0]
+
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                row = cur.fetchone()
+            conn.commit()
+            return row[0]
+        finally:
+            conn.close()
 
     def add_answer(self, candidate_id: int, answer: Dict[str, Any]) -> None:
         sql = """
@@ -114,38 +116,51 @@ class PostgresDB:
             "score":        answer.get("score"),
             "timestamp":    answer.get("timestamp", datetime.utcnow()),
         }
-        with self._conn.cursor() as cur:
-            cur.execute(sql, params)
-        self._conn.commit()
+
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_candidate_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         sql = "SELECT * FROM candidates WHERE email = %s;"
-        with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(sql, (email,))
-            row = cur.fetchone()
-        return dict(row) if row else None
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, (email,))
+                row = cur.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
 
     def get_candidate_with_answers(self, email: str) -> Optional[Dict[str, Any]]:
         cand = self.get_candidate_by_email(email)
         if not cand:
             return None
+
         sql = "SELECT * FROM answers WHERE candidate_id = %s ORDER BY timestamp;"
-        with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(sql, (cand["id"],))
-            answers = [dict(r) for r in cur.fetchall()]
-        cand["answers"] = answers
-        return cand
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, (cand["id"],))
+                answers = [dict(r) for r in cur.fetchall()]
+            cand["answers"] = answers
+            return cand
+        finally:
+            conn.close()
 
     def list_candidates(self, limit: int = 50) -> List[Dict[str, Any]]:
         sql = "SELECT * FROM candidates ORDER BY created_at DESC LIMIT %s;"
-        with self._conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(sql, (limit,))
-            return [dict(r) for r in cur.fetchall()]
-
-    def close(self) -> None:
-        if self._conn and not self._conn.closed:
-            self._conn.close()
-            self._conn = None
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, (limit,))
+                return [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +170,6 @@ _db_instance: Optional[PostgresDB] = None
 
 
 def get_db(dsn: Optional[str] = None) -> PostgresDB:
-    """Return a singleton PostgresDB instance. Safe to call multiple times."""
     global _db_instance
     if _db_instance is None:
         _db_instance = PostgresDB(dsn=dsn)
@@ -163,16 +177,12 @@ def get_db(dsn: Optional[str] = None) -> PostgresDB:
 
 
 # ---------------------------------------------------------------------------
-# Module-level wrapper (initialised by init_postgres or auto-init)
+# Module-level wrapper
 # ---------------------------------------------------------------------------
 _db_wrapper: Optional[PostgresDB] = None
 
 
 def init_postgres(dsn: Optional[str] = None) -> None:
-    """
-    Initialize the DB wrapper. Safe to call multiple times.
-    Uses POSTGRES_DSN env var if no dsn provided.
-    """
     global _db_wrapper
     if _db_wrapper is not None:
         return
@@ -185,11 +195,11 @@ def init_postgres(dsn: Optional[str] = None) -> None:
 def _normalize_answer_input(ans: Dict[str, Any]) -> Dict[str, Any]:
     a = dict(ans or {})
     a.setdefault("question_id", a.get("question_id") or a.get("qid") or None)
-    a.setdefault("question",    a.get("question")    or a.get("q")   or "")
-    a.setdefault("answer",      a.get("answer")      or a.get("response") or "")
-    a.setdefault("tech",        a.get("tech")        or "General")
+    a.setdefault("question",    a.get("question") or a.get("q") or "")
+    a.setdefault("answer",      a.get("answer") or a.get("response") or "")
+    a.setdefault("tech",        a.get("tech") or "General")
     a.setdefault("score",       a.get("score", None))
-    a.setdefault("timestamp",   a.get("timestamp")   or datetime.utcnow())
+    a.setdefault("timestamp",   a.get("timestamp") or datetime.utcnow())
     return a
 
 
@@ -197,12 +207,8 @@ def save_candidate_and_answers(
     candidate: Dict[str, Any],
     answers_list: List[Dict[str, Any]],
 ) -> str:
-    """
-    Upsert candidate by email and insert answers rows.
-    Returns the candidate id as a string.
-    Raises RuntimeError on failure.
-    """
     global _db_wrapper
+
     if _db_wrapper is None:
         try:
             init_postgres()
@@ -218,6 +224,7 @@ def save_candidate_and_answers(
         or candidate.get("email_address")
         or ""
     ).strip()
+
     if not email:
         raise ValueError("Candidate must include an 'email' field.")
 
